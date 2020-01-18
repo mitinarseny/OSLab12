@@ -1,0 +1,3 @@
+/Users/mitinarseny/dev/hse/os/lab12/c/CMakeFiles/rebuild_cache.dir
+/Users/mitinarseny/dev/hse/os/lab12/c/CMakeFiles/edit_cache.dir
+/Users/mitinarseny/dev/hse/os/lab12/c/CMakeFiles/pps.dir

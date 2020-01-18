@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdio.h>
 #include <sys/wait.h>
 #include "errors.h"
 
@@ -17,6 +18,11 @@ int main() {
         if (wait(&ps_status) == -1) {
             errExit("unable to wait for the child process to complete");
         }
+        close(0);
+        dup2(pipe_fds[0], 0);
+        char *buf;
+        printf("%d bytes was read", read(0, buf, 1));
+        printf(buf);
     }
 }
 
