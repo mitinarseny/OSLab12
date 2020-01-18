@@ -5,7 +5,6 @@ set(CMAKE_C_STANDARD 11)
 
 set(SOURCE_FILES
     main.c
-    errors.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})

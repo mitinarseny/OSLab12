@@ -1,74 +1,90 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <errno.h>
-#include "errors.h"
+
+unsigned int interrupt_count = 0;
+
+void handleInterrupt() {
+    interrupt_count++;
+    if (interrupt_count != 4) {
+        return;
+    }
+    pid_t activeTTYs;
+    switch (activeTTYs = fork()) {
+    case -1:
+        perror("fork");
+        return;
+    case 0:
+        execl("/bin/ps", "ps", NULL);
+        exit(EXIT_FAILURE);
+    default: {
+        int ws;
+        if (waitpid(activeTTYs, &ws, 0) == -1) {
+            perror("wait");
+            exit(EXIT_FAILURE);
+        }
+        if (ws != 0) {
+            exit(ws);
+        }
+    }}
+}
 
 int main() {
+    signal(SIGINT, handleInterrupt);
     int pipe_fds[2];
-    if (pipe(pipe_fds) != 0)
-        errExit("unable to create pipe");
-    printf("pipe_fds: %d, %d\n", pipe_fds[0], pipe_fds[1]);
-    pid_t childPID;
-    switch (childPID = fork()) {
+    if (pipe(pipe_fds) != 0) {
+        perror("unable to create pipe");
+        return EXIT_FAILURE;
+    }
+    pid_t ps;
+    switch (ps = fork()) {
     case -1:
-        errExit("fork() failed");
-        break;
+        perror("fork");
+        return EXIT_FAILURE;
     case 0:
-        /* close(0); */
         printf("[C] enter\n");
-        if (dup2(pipe_fds[1], STDOUT_FILENO) == -1)
-            errExit("dup2");
-        close(pipe_fds[0]);
-        close(pipe_fds[1]);
-        execl("/bin/ps", "ps", "ax", NULL);
+        if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
+            perror("dup2");
+            return EXIT_FAILURE;
+        }
+
+        if (close(pipe_fds[0]) != 0)
+            perror("close");
+        if (close(pipe_fds[1]) != 0)
+            perror("close");
+
+        execl("/bin/ps", "ps", "a", "-o", "pid=", NULL);
         exit(EXIT_FAILURE);
         break;
-    default:
+    default: {
         printf("[P] enter\n");
         close(pipe_fds[1]);
+
         char buff[4096];
         int bytes_read;
         while ((bytes_read = read(pipe_fds[0], buff, sizeof(buff))) > 0) {
             write(STDOUT_FILENO, buff, bytes_read);
         }
-        if (bytes_read == -1)
-            errExit("read");
+        if (bytes_read == -1) {
+            perror("read");
+        }
+
         close(pipe_fds[0]);
+
         int ws;
-        if (wait(&ws) == -1)
-            errExit("wait");
-        if (ws != 0)
-            errExit("child process terminated with status code not zero");
+        if (waitpid(ps, &ws, 0) == -1) {
+            perror("wait");
+            return EXIT_FAILURE;
+        }
+        if (ws != 0) {
+            return ws; // exit with exit code of ps
+        }
         printf("[P] wait complete\n");
-        
-        break;
-    }
+        while(getchar() != 'q');
+    }}
     return 0;
-    /* if (fork() == 0) { */
-    /*     printf("[C] enter\n"); */
-    /*     close(1); */
-    /*     printf("[C] closed 1\n"); */
-    /*     close(pipe_fds[0]); */
-    /*     printf("[C] closed pipe_fds[0]\n"); */
-    /*     dup2(pipe_fds[1], 1); */
-    /*     printf("[C] dup2 pipe_fds[1] -> 1\n"); */
-    /*     close(pipe_fds[1]); */
-    /*     printf("[C] closed pipe_fds[1]\n"); */
-    /*     execl("/bin/ps", "ps", "ax", NULL); */
-    /* } else { */
-    /*     printf("[P] enter\n"); */
-    /*     int ps_status; */
-    /*     if (wait(&ps_status) == -1) { */
-    /*         errExit("unable to wait for the child process to complete"); */
-    /*     } */
-    /*     printf("[P] wait complete\n"); */
-    /*     close(0); */
-    /*     dup2(pipe_fds[0], 0); */
-    /*     char *buf; */
-    /*     printf("%d bytes was read", read(0, buf, 1)); */
-    /*     printf(buf); */
-    /* } */
 }
 
