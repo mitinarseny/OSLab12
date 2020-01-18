@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
-#include "errno.h"
+#include <errno.h>
+#include "errors.h"
 
 int main() {
     int pipe_fds[2];
