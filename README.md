@@ -5,8 +5,7 @@ Show active processes PIDs.
 
 ### Build
 ```
-cmake .
-make
+cd c && cmake . && make
 ```
 
 ### Usage
