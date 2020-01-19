@@ -150,7 +150,8 @@ int main() {
     default: {
         if (close(pipe_fds[1]) != 0)
             perror("close");
-
+        
+        printf("Active processes:\n");
         char buff[4096];
         int bytes_read;
         while ((bytes_read = read(pipe_fds[0], buff, sizeof(buff))) > 0) {
@@ -172,7 +173,9 @@ int main() {
             return ws; // exit with non-zero exit code from ps
         }
 
-        while(getchar() != 'q');
+        printf("Enter anything to exit: ");
+        fflush(stdout);
+        getchar();
     }}
     return 0;
 }
