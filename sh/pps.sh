@@ -2,13 +2,19 @@
 
 sigint_count=0
 
-_handle_int(){
-  if [ "${sigint_count}" -lt 3 ]; then ((sigint_count++)); return; fi
-  echo 1
-  exit 0
+handle_int(){
+  sigint_count=$((sigint_count + 1))
+  if [ "${sigint_count}" -ne 4 ]; then return; fi
+  ps a -o tty= | sort | uniq
 }
 
-trap _handle_int SIGINT
-for ((i = 0; i < 100; i++)); do
-ps ax | awk '{print $1}'
+trap 'handle_int' 2
+
+echo "Active processes:"
+ps a -o pid= | cat
+printf "Enter anything to exit: "
+while true; do
+  read _ && exit 0
 done
+
+
