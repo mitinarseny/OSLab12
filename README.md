@@ -8,7 +8,7 @@ Show active processes PIDs.
 cd c && cmake . && make
 ```
 
-### Usage
+## Usage
 ```bash
 # For C
 ./c/pps
