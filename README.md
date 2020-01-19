@@ -1,14 +1,14 @@
 # pps
 Show active processes PIDs.
 
-## C
+## Build
 
-### Build
 ```bash
 cd c && cmake . && make
 ```
 
 ## Usage
+
 ```bash
 # For C
 ./c/pps
@@ -16,6 +16,7 @@ cd c && cmake . && make
 # For shell
 ./sh/pps.sh
 ```
+
 To quit, enter anything.
 To show active terminals send `SIGINT` 4 times (or press `<Ctrl+C>` 4 times).
 
