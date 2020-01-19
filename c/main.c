@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -12,56 +13,112 @@ void handleInterrupt() {
     if (interrupt_count != 4) {
         return;
     }
-    int pipe_fds[2];
-    if (pipe(pipe_fds) != 0) {
+
+    int pipe1_fds[2];
+    if (pipe(pipe1_fds) != 0) {
         perror("pipe");
         exit(EXIT_FAILURE);
+        return;
     }
 
-    pid_t activeTTYs;
-    switch (activeTTYs = fork()) {
+    switch (fork()) {
     case -1:
         perror("fork");
+        exit(EXIT_FAILURE);
         return;
-    case 0:
-        if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
+    case 0: // child
+        if (close(STDIN_FILENO) != 0) {
+            perror("close");
+        }
+        if (dup2(pipe1_fds[1], STDOUT_FILENO) == -1) {
+            perror("dup2");
+            exit(EXIT_FAILURE);
+            return;
+        }
+
+        if (close(pipe1_fds[0]) != 0)
+            perror("close");
+        if (close(pipe1_fds[1]) != 0) {
+            perror("close");
+        }
+        
+        execl("/bin/ps", "ps", "a", "-o", "tty=", NULL);
+        exit(EXIT_FAILURE);
+        return;
+    }
+    if (close(pipe1_fds[1]) != 0)
+        perror("close");
+
+    int pipe2_fds[2];
+    if (pipe(pipe2_fds) != 0) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+        return;
+    }
+
+    switch (fork()) {
+    case -1:
+        perror("fork");
+        exit(EXIT_FAILURE);
+        return;
+    case 0: // child
+        if (close(pipe2_fds[0]) != 0)
+            perror("close");
+
+        if (dup2(pipe1_fds[0], STDIN_FILENO) == -1) {
+            perror("dup2");
+            exit(EXIT_FAILURE);
+            return;
+        }
+        if (close(pipe1_fds[0]) != 0) 
+            perror("close");
+
+        if (dup2(pipe2_fds[1], STDOUT_FILENO) == -1) {
+            perror("dup2");
+            exit(EXIT_FAILURE);
+            return;
+        }
+        if (close(pipe2_fds[1]) != 0)
+            perror("close");
+
+        execl("/usr/bin/sort", "sort", NULL);
+        exit(EXIT_FAILURE);
+        return;
+    }
+
+    if (close(pipe2_fds[1]) != 0)
+        perror("close");
+
+    pid_t uniq;
+    switch (uniq = fork()) {
+    case -1:
+        perror("fork");
+        exit(EXIT_FAILURE);
+        return;
+    case 0: // child
+        if (dup2(pipe2_fds[0], STDIN_FILENO) == -1) {
             perror("dup2");
             exit(EXIT_FAILURE);
         }
-
-        if (close(pipe_fds[0]) != 0)
+        if (close(pipe2_fds[0]) != 0)
             perror("close");
-        if (close(pipe_fds[1]) != 0) {
-            perror("close");
-        }
-
-        execl("/bin/ps", "ps", "a", "-o", "tty=", NULL);
+        printf("Active terminals:\n");
+        execl("/usr/bin/uniq", "uniq", NULL);
         exit(EXIT_FAILURE);
-    default: {
-        if (close(pipe_fds[1]) != 0)
-            perror("close");
+        return;
+    }
 
-        char buff[4096];
-        int bytes_read;
-        while ((bytes_read = read(pipe_fds[0], buff, sizeof(buff))) > 0) {
-            write(STDOUT_FILENO, buff, bytes_read);
-        }
-        if (bytes_read == -1) {
-            perror("read");
-        }
+    int ws;
+    if (waitpid(uniq, &ws, 0) == -1) {
+        perror("waitpid");
+        exit(EXIT_FAILURE);
+        return;
+    }
 
-        if (close(pipe_fds[0]) != 0)
-            perror("close");
-
-        int ws;
-        if (waitpid(activeTTYs, &ws, 0) == -1) {
-            perror("wait");
-            exit(EXIT_FAILURE);
-        }
-        if (ws != 0) {
-            exit(ws);
-        }
-    }}
+    if (ws != 0) {
+        exit(ws); // exit with last process non-zero exit code
+        return;
+    }
 }
 
 int main() {
@@ -77,7 +134,6 @@ int main() {
         perror("fork");
         return EXIT_FAILURE;
     case 0:
-        printf("[C] enter\n");
         if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
             perror("dup2");
             return EXIT_FAILURE;
@@ -92,7 +148,6 @@ int main() {
         exit(EXIT_FAILURE);
         break;
     default: {
-        printf("[P] enter\n");
         if (close(pipe_fds[1]) != 0)
             perror("close");
 
@@ -114,9 +169,9 @@ int main() {
             return EXIT_FAILURE;
         }
         if (ws != 0) {
-            return ws; // exit with exit code of ps
+            return ws; // exit with non-zero exit code from ps
         }
-        printf("[P] wait complete\n");
+
         while(getchar() != 'q');
     }}
     return 0;
