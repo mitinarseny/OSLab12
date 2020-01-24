@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
-project(pps VERSION 0.1.0)
+project(pps LANGUAGES C VERSION 0.1.0)
 
 set(CMAKE_C_STANDARD 11)
 

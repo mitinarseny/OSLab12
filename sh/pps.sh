@@ -5,6 +5,7 @@ sigint_count=0
 handle_int(){
   sigint_count=$((sigint_count + 1))
   if [ "${sigint_count}" -ne 4 ]; then return; fi
+  echo "Active terminals:"
   ps a -o tty= | sort | uniq
 }
 
