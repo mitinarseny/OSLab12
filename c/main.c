@@ -59,9 +59,6 @@ void handleInterrupt() {
         exit(EXIT_FAILURE);
         return;
     case 0: // child
-        if (close(pipe2_fds[0]) != 0)
-            perror("close");
-
         if (dup2(pipe1_fds[0], STDIN_FILENO) == -1) {
             perror("dup2");
             exit(EXIT_FAILURE);
@@ -82,6 +79,9 @@ void handleInterrupt() {
         exit(EXIT_FAILURE);
         return;
     }
+    
+    if (close(pipe1_fds[0]) != 0)
+        perror("close");
 
     if (close(pipe2_fds[1]) != 0)
         perror("close");
@@ -113,6 +113,7 @@ void handleInterrupt() {
     }
 
     if (ws != 0) {
+        printf("uniq exited with code %d", ws);
         exit(ws); // exit with last process non-zero exit code
         return;
     }
@@ -120,11 +121,13 @@ void handleInterrupt() {
 
 int main() {
     signal(SIGINT, handleInterrupt);
+
     int pipe_fds[2];
     if (pipe(pipe_fds) != 0) {
         perror("unable to create pipe");
         return EXIT_FAILURE;
     }
+
     pid_t ps;
     switch (ps = fork()) {
     case -1:
@@ -143,37 +146,40 @@ int main() {
 
         execl("/bin/ps", "ps", "ax", "-o", "pid=", NULL);
         exit(EXIT_FAILURE);
-        break;
-    default: {
-        if (close(pipe_fds[1]) != 0)
-            perror("close");
-        
-        printf("Active processes:\n");
-        char buff[4096];
-        int bytes_read;
-        while ((bytes_read = read(pipe_fds[0], buff, sizeof(buff))) > 0) {
-            write(STDOUT_FILENO, buff, bytes_read);
-        }
-        if (bytes_read == -1) {
-            perror("read");
-        }
+    }
 
-        if (close(pipe_fds[0]) != 0)
-            perror("close");
-
-        int ws;
-        if (waitpid(ps, &ws, 0) == -1) {
-            perror("wait");
+    if (close(pipe_fds[1]) != 0)
+        perror("close");
+     
+    printf("Active processes:\n");
+    char buff[4096];
+    int bytes_read;
+    while ((bytes_read = read(pipe_fds[0], buff, sizeof(buff))) > 0) {
+        if (write(STDOUT_FILENO, buff, bytes_read) == -1) {
+            perror("write");
             return EXIT_FAILURE;
         }
-        if (ws != 0) {
-            return ws; // exit with non-zero exit code from ps
-        }
+    }
+    if (bytes_read == -1) {
+        perror("read");
+    }
 
-        printf("Enter anything to exit: ");
-        fflush(stdout);
-        getchar();
-    }}
+    if (close(pipe_fds[0]) != 0)
+        perror("close");
+
+    int ws;
+    if (waitpid(ps, &ws, 0) == -1) {
+        perror("wait");
+        return EXIT_FAILURE;
+    }
+    if (ws != 0) {
+        printf("ps exited with code %d", ws);
+        return ws; // exit with non-zero exit code from ps
+    }
+
+    printf("Enter anything to exit: ");
+    fflush(stdout);
+    getchar();
     return 0;
 }
 
