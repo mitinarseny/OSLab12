@@ -40,6 +40,7 @@ void handleInterrupt() {
         }
         
         execl("/bin/ps", "ps", "a", "-o", "tty=", NULL);
+        perror("execl failed");
         exit(EXIT_FAILURE);
         return;
     }
@@ -76,6 +77,7 @@ void handleInterrupt() {
             perror("close");
 
         execl("/usr/bin/sort", "sort", NULL);
+        perror("execl failed");
         exit(EXIT_FAILURE);
         return;
     }
@@ -101,21 +103,18 @@ void handleInterrupt() {
             perror("close");
         printf("Active terminals:\n");
         execl("/usr/bin/uniq", "uniq", NULL);
+        perror("execl failed");
         exit(EXIT_FAILURE);
         return;
     }
 
     int ws;
-    if (waitpid(uniq, &ws, 0) == -1) {
-        perror("waitpid");
-        exit(EXIT_FAILURE);
-        return;
-    }
-
-    if (ws != 0) {
-        printf("uniq exited with code %d", ws);
-        exit(ws); // exit with last process non-zero exit code
-        return;
+    pid_t wpid;
+    while ((wpid = wait(&ws)) > 0) {
+        if (ws != 0) {
+            printf("child with PID %d exited with code %d", wpid, ws);
+            exit(ws); // exit with non-zero exit code from child process
+        }
     }
 }
 
@@ -145,6 +144,7 @@ int main() {
             perror("close");
 
         execl("/bin/ps", "ps", "ax", "-o", "pid=", NULL);
+        perror("execl failed");
         exit(EXIT_FAILURE);
     }
 
