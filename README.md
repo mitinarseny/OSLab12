@@ -18,7 +18,7 @@ cd c && cmake . && make
 ```
 
 To quit, enter anything.
-To show active terminals send `SIGINT` 4 times (or press `<Ctrl+C>` 4 times).
+To show active terminals send `SIGINT` (press `<Ctrl+C>`) 4 times.
 
 
 ## Docker
