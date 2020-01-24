@@ -27,9 +27,6 @@ void handleInterrupt() {
         exit(EXIT_FAILURE);
         return;
     case 0: // child
-        if (close(STDIN_FILENO) != 0) {
-            perror("close");
-        }
         if (dup2(pipe1_fds[1], STDOUT_FILENO) == -1) {
             perror("dup2");
             exit(EXIT_FAILURE);
@@ -144,7 +141,7 @@ int main() {
         if (close(pipe_fds[1]) != 0)
             perror("close");
 
-        execl("/bin/ps", "ps", "a", "-o", "pid=", NULL);
+        execl("/bin/ps", "ps", "ax", "-o", "pid=", NULL);
         exit(EXIT_FAILURE);
         break;
     default: {

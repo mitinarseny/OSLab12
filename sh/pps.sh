@@ -11,7 +11,7 @@ handle_int(){
 trap 'handle_int' 2
 
 echo "Active processes:"
-ps a -o pid= | cat
+ps ax -o pid= | cat
 printf "Enter anything to exit: "
 while true; do
   read _ && exit 0
