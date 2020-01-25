@@ -123,8 +123,8 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    pid_t ps;
-    switch (ps = fork()) {
+    pid_t psPid;
+    switch (psPid = fork()) {
     case -1:
         perror("fork");
         return EXIT_FAILURE;
@@ -164,7 +164,7 @@ int main() {
         perror("close");
 
     int ws;
-    if (waitpid(ps, &ws, 0) == -1) {
+    if (waitpid(psPid, &ws, 0) == -1) {
         perror("wait");
         return EXIT_FAILURE;
     }
