@@ -20,8 +20,8 @@ void handleInterrupt() {
         exit(EXIT_FAILURE);
         return;
     }
-
-    switch (fork()) {
+    pid_t pids[3];
+    switch (pids[0] = fork()) {
     case -1:
         perror("fork");
         exit(EXIT_FAILURE);
@@ -54,7 +54,7 @@ void handleInterrupt() {
         return;
     }
 
-    switch (fork()) {
+    switch (pids[1] = fork()) {
     case -1:
         perror("fork");
         exit(EXIT_FAILURE);
@@ -88,8 +88,7 @@ void handleInterrupt() {
     if (close(pipe2_fds[1]) != 0)
         perror("close");
 
-    pid_t uniq;
-    switch (uniq = fork()) {
+    switch (pids[2] = fork()) {
     case -1:
         perror("fork");
         exit(EXIT_FAILURE);
@@ -108,13 +107,10 @@ void handleInterrupt() {
         return;
     }
 
-    int ws;
-    pid_t wpid;
-    while ((wpid = wait(&ws)) > 0) {
-        if (ws != 0) {
-            printf("child with PID %d exited with code %d", wpid, ws);
-            exit(ws); // exit with non-zero exit code from child process
-        }
+    for (int i = 0; i < 3; i ++) {
+        int ws;
+        if (waitpid(pids[i], &ws, 0) == -1)
+            perror("waitpid");
     }
 }
 
