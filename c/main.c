@@ -164,7 +164,7 @@ int printPIDs() {
     if (close(pipe_fds[1]) != 0)
         perror("close");
    
-    if (dup2(pipe_fds[0], STDIN_FILENO) == -1) {
+    if (dup2(pipe_fds[0], STDIN_FILENO) == -1) { // scanf reads from stdin
         perror("dup2");
         return EXIT_FAILURE;
     }
