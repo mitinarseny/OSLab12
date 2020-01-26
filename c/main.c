@@ -114,9 +114,26 @@ void handleInterrupt() {
     }
 }
 
+int printPIDs();
+
 int main() {
     signal(SIGINT, handleInterrupt);
 
+    pid_t activeProcessesPID;
+    switch (activeProcessesPID = fork()) {
+    case -1:
+        perror("fork");
+        return EXIT_FAILURE;
+    case 0: {
+        return printPIDs(); 
+    }}
+    
+    fflush(stdout);
+    getchar();
+    return 0;
+}
+
+int printPIDs() {
     int pipe_fds[2];
     if (pipe(pipe_fds) != 0) {
         perror("unable to create pipe");
@@ -139,43 +156,35 @@ int main() {
         if (close(pipe_fds[1]) != 0)
             perror("close");
 
-        execl("/bin/ps", "ps", "ax", "-o", "pid=", NULL);
+        execl("/bin/ps", "ps", "ax", NULL);
         perror("execl failed");
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (close(pipe_fds[1]) != 0)
         perror("close");
-     
-    printf("Active processes:\n");
-    char buff[4096];
-    int bytes_read;
-    while ((bytes_read = read(pipe_fds[0], buff, sizeof(buff))) > 0) {
-        if (write(STDOUT_FILENO, buff, bytes_read) == -1) {
-            perror("write");
-            return EXIT_FAILURE;
-        }
-    }
-    if (bytes_read == -1) {
-        perror("read");
+   
+    if (dup2(pipe_fds[0], STDIN_FILENO) == -1) {
+        perror("dup2");
+        return EXIT_FAILURE;
     }
 
     if (close(pipe_fds[0]) != 0)
         perror("close");
 
-    int ws;
-    if (waitpid(psPid, &ws, 0) == -1) {
-        perror("wait");
-        return EXIT_FAILURE;
-    }
-    if (ws != 0) {
-        printf("ps exited with code %d", ws);
-        return ws; // exit with non-zero exit code from ps
+    printf("Active processes:\n");
+   
+    scanf("%*[^\n]\n"); // skip first line
+    int gotPID;
+    while (scanf("%d %*[^\n]\n", &gotPID) == 1) {
+        printf("%d\n", gotPID);
     }
 
-    printf("Enter anything to exit: ");
-    fflush(stdout);
-    getchar();
-    return 0;
+    int ws;
+    if (waitpid(psPid, &ws, 0) == -1) {
+        perror("waitpid");
+        return EXIT_FAILURE;
+    }
+    return ws;
 }
 
