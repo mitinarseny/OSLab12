@@ -127,8 +127,7 @@ int main() {
     case 0: {
         return printPIDs(); 
     }}
-    
-    fflush(stdout);
+
     getchar();
     return 0;
 }
