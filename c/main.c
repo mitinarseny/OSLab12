@@ -13,7 +13,13 @@ int printTTYs();
 void handleInterrupt();
 
 int main() {
-    signal(SIGINT, handleInterrupt);
+    struct sigaction act;
+    act.sa_sigaction = &handleInterrupt;
+    if (sigaction(SIGINT, &act, NULL) == -1) {
+        perror("sigaction");
+        return EXIT_FAILURE;
+    }
+    /* signal(SIGINT, handleInterrupt); */
 
     pid_t activeProcessesPID;
     switch (activeProcessesPID = fork()) {
@@ -34,7 +40,7 @@ int main() {
 unsigned int interruptCount = 0;
 
 // handleInterrupt is a signal handler
-void handleInterrupt() {   
+void handleInterrupt(int signo) {
     interruptCount++;
     if (interruptCount != 4)
         return;
