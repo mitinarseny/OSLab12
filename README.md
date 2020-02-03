@@ -33,4 +33,6 @@ docker build -t pps_ubuntu .
 
 ```bash
 docker run --rm -it pps_ubuntu
+root:/test# ./c/pps
+root:/test# ./sh./pps.sh
 ```
