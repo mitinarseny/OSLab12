@@ -6,115 +6,10 @@
 #include <sys/wait.h>
 #include <errno.h>
 
-unsigned int interrupt_count = 0;
-
-void handleInterrupt() {
-    interrupt_count++;
-    if (interrupt_count != 4) {
-        return;
-    }
-
-    int pipe1_fds[2];
-    if (pipe(pipe1_fds) != 0) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-        return;
-    }
-    pid_t pids[3];
-    switch (pids[0] = fork()) {
-    case -1:
-        perror("fork");
-        exit(EXIT_FAILURE);
-        return;
-    case 0: // child
-        if (dup2(pipe1_fds[1], STDOUT_FILENO) == -1) {
-            perror("dup2");
-            exit(EXIT_FAILURE);
-            return;
-        }
-
-        if (close(pipe1_fds[0]) != 0)
-            perror("close");
-        if (close(pipe1_fds[1]) != 0) {
-            perror("close");
-        }
-        
-        execl("/bin/ps", "ps", "a", "-o", "tty=", NULL);
-        perror("execl failed");
-        exit(EXIT_FAILURE);
-        return;
-    }
-    if (close(pipe1_fds[1]) != 0)
-        perror("close");
-
-    int pipe2_fds[2];
-    if (pipe(pipe2_fds) != 0) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-        return;
-    }
-
-    switch (pids[1] = fork()) {
-    case -1:
-        perror("fork");
-        exit(EXIT_FAILURE);
-        return;
-    case 0: // child
-        if (dup2(pipe1_fds[0], STDIN_FILENO) == -1) {
-            perror("dup2");
-            exit(EXIT_FAILURE);
-            return;
-        }
-        if (close(pipe1_fds[0]) != 0) 
-            perror("close");
-
-        if (dup2(pipe2_fds[1], STDOUT_FILENO) == -1) {
-            perror("dup2");
-            exit(EXIT_FAILURE);
-            return;
-        }
-        if (close(pipe2_fds[1]) != 0)
-            perror("close");
-
-        execl("/usr/bin/sort", "sort", NULL);
-        perror("execl failed");
-        exit(EXIT_FAILURE);
-        return;
-    }
-    
-    if (close(pipe1_fds[0]) != 0)
-        perror("close");
-
-    if (close(pipe2_fds[1]) != 0)
-        perror("close");
-
-    switch (pids[2] = fork()) {
-    case -1:
-        perror("fork");
-        exit(EXIT_FAILURE);
-        return;
-    case 0: // child
-        if (dup2(pipe2_fds[0], STDIN_FILENO) == -1) {
-            perror("dup2");
-            exit(EXIT_FAILURE);
-        }
-        if (close(pipe2_fds[0]) != 0)
-            perror("close");
-        printf("Active terminals:\n");
-        execl("/usr/bin/uniq", "uniq", NULL);
-        perror("execl failed");
-        exit(EXIT_FAILURE);
-        return;
-    }
-
-    for (int i = 0; i < 3; i ++) {
-        int ws;
-        if (waitpid(pids[i], &ws, 0) == -1)
-            perror("waitpid");
-    }
-}
-
+pid_t runPS2Stdin(const char[]);
 int printPIDs();
+int printTTYs();
+void handleInterrupt();
 
 int main() {
     signal(SIGINT, handleInterrupt);
@@ -125,29 +20,62 @@ int main() {
         perror("fork");
         return EXIT_FAILURE;
     case 0: {
-        return printPIDs(); 
+        int ws;
+        if ((ws = printPIDs()) != 0) {
+            return ws;
+        }
     }}
-
+    
     getchar();
     return 0;
 }
 
-int printPIDs() {
+unsigned int interruptCount = 0;
+
+// handleInterrupt is a signal handler
+void handleInterrupt() {   
+    interruptCount++;
+    if (interruptCount != 4)
+        return;
+
+    pid_t activeTTYsPID;
+    switch (activeTTYsPID = fork()) {
+    case -1:
+        perror("fork");
+        exit(EXIT_FAILURE);
+    case 0:
+        exit(printTTYs());
+    }
+    int ws;
+    if (waitpid(activeTTYsPID, &ws, 0) == -1) {
+        perror("waitpid");
+        exit(EXIT_FAILURE);
+    }
+    exit(ws);
+
+}
+
+// runPS2Stdin executes ps in separate process
+// and redirects output to stdin
+// return value:
+//   -1: error
+//   >0: PID
+pid_t runPS2Stdin(const char flags[]) {
     int pipe_fds[2];
     if (pipe(pipe_fds) != 0) {
         perror("unable to create pipe");
-        return EXIT_FAILURE;
+        return -1;
     }
 
     pid_t psPid;
     switch (psPid = fork()) {
     case -1:
         perror("fork");
-        return EXIT_FAILURE;
+        return -1;
     case 0:
         if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
             perror("dup2");
-            return EXIT_FAILURE;
+            return -1;
         }
 
         if (close(pipe_fds[0]) != 0)
@@ -155,9 +83,9 @@ int printPIDs() {
         if (close(pipe_fds[1]) != 0)
             perror("close");
 
-        execl("/bin/ps", "ps", "ax", NULL);
+        execl("/bin/ps", "ps", flags, NULL);
         perror("execl failed");
-        return EXIT_FAILURE;
+        return -1;
     }
 
     if (close(pipe_fds[1]) != 0)
@@ -165,11 +93,25 @@ int printPIDs() {
    
     if (dup2(pipe_fds[0], STDIN_FILENO) == -1) { // scanf reads from stdin
         perror("dup2");
-        return EXIT_FAILURE;
+        return -1;
     }
 
     if (close(pipe_fds[0]) != 0)
         perror("close");
+
+    return psPid;  
+}
+
+// printPIDs prints PIDs of all active processes
+// return value:
+//   0: on success
+//   EXIT_FAILURE: internal error
+//   >0: ps non-zero exit code
+int printPIDs() {
+    pid_t psPid;
+    if ((psPid = runPS2Stdin("ax")) == -1) {
+        return -1; 
+    }
 
     printf("Active processes:\n");
    
@@ -187,3 +129,29 @@ int printPIDs() {
     return ws;
 }
 
+// printTTYs prints PIDs of all active processes
+// return value:
+//   0: on success
+//   EXIT_FAILURE: internal error
+//   >0: ps non-zero exit code
+int printTTYs() {
+    pid_t psPid;
+    if ((psPid = runPS2Stdin("a")) == -1)
+        return -1;
+
+    printf("Active terminals:\n");
+
+    scanf("%*[^\n]\n"); // skip first line
+    char *tty;
+    while(scanf("%*d %ms %*[^\n]\n", &tty) == 1) {
+        printf("%s\n", tty);
+        free(tty);
+    }
+
+    int ws;
+    if (waitpid(psPid, &ws, 0) == -1) {
+        perror("waitpid");
+        exit(EXIT_FAILURE);
+    }
+    return ws;
+}
