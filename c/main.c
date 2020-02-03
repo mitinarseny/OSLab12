@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <errno.h>
 
@@ -46,6 +47,7 @@ void handleInterrupt() {
     case 0:
         exit(printTTYs());
     }
+
     int ws;
     if (waitpid(activeTTYsPID, &ws, 0) == -1) {
         perror("waitpid");
@@ -142,10 +144,33 @@ int printTTYs() {
     printf("Active terminals:\n");
 
     scanf("%*[^\n]\n"); // skip first line
-    char *tty;
-    while(scanf("%*d %ms %*[^\n]\n", &tty) == 1) {
-        printf("%s\n", tty);
-        free(tty);
+
+    size_t cap = 1 * sizeof(char*);
+    char **ttys = (char **)(malloc(cap));
+    int size = 0;
+
+    char *curTTY;
+    while(scanf("%*d %ms %*[^\n]\n", &curTTY) == 1) {
+        /* printf("%s\n", tty); */
+        /* free(ttys[size]); */
+        int8_t found = 0;
+        for (int i = 0; i < size; i++) {
+            if (strcmp(ttys[i], curTTY) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (found == 1) {
+            free(curTTY);
+            continue;
+        }
+        printf("%s\n", curTTY);
+        ttys[size] = curTTY;
+        size++;
+        if (size == cap) {
+            cap *= 2;
+            ttys = realloc(ttys, cap);
+        }
     }
 
     int ws;
