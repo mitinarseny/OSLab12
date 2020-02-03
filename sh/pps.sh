@@ -7,6 +7,7 @@ handle_int(){
   if [ "${sigint_count}" -ne 4 ]; then return; fi
   echo "Active terminals:"
   ps a -o tty= | sort | uniq
+  exit 0
 }
 
 trap 'handle_int' 2
