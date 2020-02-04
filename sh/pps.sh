@@ -1,4 +1,5 @@
 #!/bin/sh
+# args=$@
 
 sigint_count=0
 
@@ -7,6 +8,8 @@ handle_int(){
   if [ "${sigint_count}" -ne 4 ]; then return; fi
   echo "Active terminals:"
   ps a -o tty= | sort | uniq
+
+  # echo "WC:" && wc $args
   exit 0
 }
 

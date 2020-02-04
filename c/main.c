@@ -1,5 +1,4 @@
 #include <unistd.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -14,7 +13,8 @@ void handleInterrupt();
 
 int main() {
     struct sigaction act;
-    act.sa_sigaction = &handleInterrupt;
+    act.sa_flags = SA_RESTART;
+    act.sa_handler = &handleInterrupt;
     if (sigaction(SIGINT, &act, NULL) == -1) {
         perror("sigaction");
         return EXIT_FAILURE;
@@ -41,6 +41,13 @@ unsigned int interruptCount = 0;
 
 // handleInterrupt is a signal handler
 void handleInterrupt(int signo) {
+
+    /* struct sigaction act; */
+    /* act.sa_handler = &handleInterrupt; */
+    /* if (sigaction(SIGINT, &act, NULL) == -1) { */
+    /*     perror("sigaction"); */
+    /*     exit(EXIT_FAILURE); */
+    /* } */
     interruptCount++;
     if (interruptCount != 4)
         return;
