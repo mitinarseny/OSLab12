@@ -26,12 +26,9 @@ int main() {
     case -1:
         perror("fork");
         return EXIT_FAILURE;
-    case 0: {
-        int ws;
-        if ((ws = printPIDs()) != 0) {
-            return ws;
-        }
-    }}
+    case 0:
+        return printPIDs();
+    }
     
     getchar();
     return 0;
